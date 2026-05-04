@@ -156,12 +156,11 @@
         <div class="result-desc">
           <p id="detail-text"></p>
         </div>
-        <button type="button" id="submit-btn" onclick="location.reload()" style="background:#666;">もう一度受ける</button>
+        <button type="button" id="submit-btn" onclick="location.href=location.pathname" style="background:#666;">もう一度受ける</button>
       </div>
     </div>
 
     <script>
-     // 問題文と採点キー (Tが1点となるもの: true, Fが1点となるもの: false)
      const questions = [
        { q: "他人の行動を真似るのは難しいと感じる。", key: false },
        { q: "自分の行動は通常、自分の本当の感情、態度、信念の表れである。", key: false },
@@ -206,38 +205,46 @@
        qContainer.appendChild(div);
      });
 
+     // --- 追加・修正ロジック ---
+
      function calculateScore() {
        const form = document.getElementById('quiz-form');
        const formData = new FormData(form);
-       let score = 0;
-       let answeredCount = 0;
+       let resultsBitString = "";
 
-       questions.forEach((item, index) => {
-         const answer = formData.get(`q${index}`);
-         if (answer) {
-           answeredCount++;
-           const isTrue = (answer === 'T');
-           // 採点ロジック: Tが正解(SM高)の項目でT、またはFが正解(SM高)の項目でFなら加点
-           if (isTrue === item.key) {
-             score++;
-           }
+       for (let i = 0; i < questions.length; i++) {
+         const answer = formData.get(`q${i}`);
+         if (!answer) {
+           alert('すべての質問に答えてくださいね！');
+           return;
+         }
+         resultsBitString += (answer === 'T' ? '1' : '0');
+       }
+
+       // URLにクエリを付与して画面を更新
+       const newUrl = window.location.pathname + '?res=' + resultsBitString;
+       window.history.pushState({ path: newUrl }, '', newUrl);
+       
+       showResult(resultsBitString);
+     }
+
+     function showResult(bitString) {
+       let score = 0;
+       const answers = bitString.split('');
+
+       answers.forEach((ans, index) => {
+         const isTrue = (ans === '1');
+         if (isTrue === questions[index].key) {
+           score++;
          }
        });
 
-       if (answeredCount < questions.length) {
-         alert('すべての質問に答えてくださいね！');
-         return;
-       }
-
-       // スコア計算 (25点満点)
        const smPercentage = Math.round((score / 25) * 100);
        const lowSmPercentage = 100 - smPercentage;
 
-       // 表示の切り替え
        document.getElementById('quiz-form').style.display = 'none';
        document.getElementById('result-area').style.display = 'block';
 
-       // バーのアニメーション
        setTimeout(() => {
          document.getElementById('bar-onion').style.width = smPercentage + '%';
          document.getElementById('bar-avocado').style.width = lowSmPercentage + '%';
@@ -255,8 +262,17 @@
          detail = "<strong>【低セルフモニタリング：アボカドタイプ】</strong><br>あなたは周囲に流されず、常に自分の内面に従って行動する「アボカド」タイプです。裏表がなく誠実ですが、たまには周囲の空気を読んで、少しだけ自分を「演出」してみると新しい世界が開けるかもしれません。";
        }
        document.getElementById('detail-text').innerHTML = detail;
+       window.scrollTo(0, 0);
      }
-    </script>
 
+     // ページ読み込み時にクエリがあるかチェック
+     window.onload = () => {
+       const urlParams = new URLSearchParams(window.location.search);
+       const res = urlParams.get('res');
+       if (res && res.length === questions.length) {
+         showResult(res);
+       }
+     };
+    </script>
   </body>
 </html>
